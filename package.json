@@ -1,0 +1,27 @@
+{
+  "name": "stop10",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild src/app.js --bundle --format=iife --target=chrome89 --minify --outfile=www/app.js",
+    "sync": "npm run build && npx cap sync android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.4",
+    "@supabase/supabase-js": "^2.119.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.3",
+    "esbuild": "^0.28.2"
+  },
+  "private": true
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Stop@10</string>
+    <string name="title_activity_main">Stop@10</string>
+    <string name="package_name">fit.stop10.cafe</string>
+    <string name="custom_url_scheme">fit.stop10.cafe</string>
+</resources>

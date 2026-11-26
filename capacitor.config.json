@@ -1,0 +1,6 @@
+{
+  "appId": "fit.stop10.cafe",
+  "appName": "Stop@10",
+  "webDir": "www",
+  "android": { "backgroundColor": "#14110f" }
+}
