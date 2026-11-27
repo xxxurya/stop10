@@ -201,6 +201,9 @@ function screenAuth(mode = 'login') {
         const { data, error } = await sb.auth.signUp({ email, password, options: { data: { cafe_name: f.get('cafe').trim() } } });
         if (error) throw error;
         if (!data.session) {
+          // accounts are auto-confirmed on the server, so log straight in
+          const r = await sb.auth.signInWithPassword({ email, password });
+          if (!r.error && r.data.session) { S.cafe = null; save(K.cafe, null); S.plays = []; S.playsLoaded = false; return boot(); }
           render(`<div class="screen"><h2>Check your email</h2><p class="sub">We sent a confirmation link to <b>${esc(email)}</b>. Open it, then come back and log in.</p><button class="btn" id="b">Go to login</button></div>`);
           $('#b').onclick = () => screenAuth('login');
           return;
