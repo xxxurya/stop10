@@ -335,9 +335,21 @@ function screenWelcome() {
     <button class="btn play-btn" id="play">Play now</button>
   </div>`, 'game-bg');
   updateOfflinePill();
+  refreshCafeIfStale();
   $('#play').onclick = screenEntry;
   $('#owner').onclick = screenEnterPin;
 }
+
+let lastCafeFetch = Date.now();
+async function refreshCafeIfStale() {
+  if (!navigator.onLine || Date.now() - lastCafeFetch < 30000) return;
+  lastCafeFetch = Date.now();
+  const before = JSON.stringify([S.cafe.name, S.cafe.target_ms, S.cafe.hide_after_ms, S.cafe.tiers]);
+  try { await fetchCafe(); } catch { return; }
+  const after = JSON.stringify([S.cafe.name, S.cafe.target_ms, S.cafe.hide_after_ms, S.cafe.tiers]);
+  if (before !== after && $('#play')) screenWelcome();
+}
+setInterval(() => { if ($('#play')) refreshCafeIfStale(); }, 60000);
 
 function screenEntry() {
   render(`
@@ -521,9 +533,9 @@ function customers(plays) {
   const m = new Map();
   for (const p of plays) {
     let c = m.get(p.phone);
-    if (!c) { c = { phone: p.phone, name: p.name, plays: 0, wins: 0, best: Infinity, last: p.played_at, first: p.played_at, consent: false, days: new Set() }; m.set(p.phone, c); }
-    c.plays++; if (p.reward) c.wins++;
-    c.best = Math.min(c.best, p.diff_ms);
+    if (!c) { c = { phone: p.phone, name: p.name, plays: 0, wins: 0, best: Infinity, bestTime: 0, rewards: [], last: p.played_at, first: p.played_at, consent: false, days: new Set() }; m.set(p.phone, c); }
+    c.plays++; if (p.reward) { c.wins++; c.rewards.push(p.reward); }
+    if (p.diff_ms < c.best) { c.best = p.diff_ms; c.bestTime = p.time_ms; }
     if (p.played_at > c.last) { c.last = p.played_at; c.name = p.name; }
     if (p.played_at < c.first) c.first = p.played_at;
     c.consent = c.consent || p.consent;
@@ -575,21 +587,22 @@ function renderPeople(panel) {
     </div>
     <div class="note">${cust.length} customers · ${S.plays.length} plays</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Mobile</th><th>Plays</th><th>Best</th><th>Wins</th><th>Offers OK</th><th>Last played</th></tr></thead>
+      <thead><tr><th>Name</th><th>Mobile</th><th>Plays</th><th>Closest attempt</th><th>Rewards won</th><th>Offers OK</th><th>Last played</th></tr></thead>
       <tbody id="tb"></tbody></table></div>`;
   const draw = () => {
     const q = $('#q').value.trim().toLowerCase();
     const rows = cust.filter((c) => !q || c.name.toLowerCase().includes(q) || c.phone.includes(q));
     $('#tb').innerHTML = rows.length ? rows.map((c) => `<tr>
       <td><b>${esc(c.name)}</b></td><td>${esc(c.phone)}</td><td>${c.plays}</td>
-      <td>±${fmt(c.best)}s</td><td>${c.wins ? `<span class="tag win">${c.wins}</span>` : '0'}</td>
+      <td>${fmt(c.bestTime)}s <span class="muted">(${c.best === 0 ? 'exact' : fmt(c.best) + 's off'})</span></td>
+      <td>${c.wins ? `<span class="tag win">${esc([...new Set(c.rewards)].join(', '))}${c.wins > 1 ? ` ×${c.wins}` : ''}</span>` : '<span class="muted">None</span>'}</td>
       <td>${c.consent ? '✅' : '—'}</td><td>${fmtDateTime(c.last)}</td></tr>`).join('')
       : `<tr><td colspan="7" class="empty">No customers yet.</td></tr>`;
   };
   $('#q').oninput = draw; draw();
   $('#expC').onclick = () => exportCsv(`customers-${dayKey(new Date())}.csv`,
-    ['Name', 'Mobile', 'Plays', 'Days visited', 'Wins', 'Best (seconds off)', 'Agreed to offers', 'First played', 'Last played'],
-    cust.map((c) => [c.name, c.phone, c.plays, c.days.size, c.wins, fmt(c.best), c.consent ? 'Yes' : 'No', new Date(c.first).toLocaleString('en-IN'), new Date(c.last).toLocaleString('en-IN')]));
+    ['Name', 'Mobile', 'Plays', 'Days visited', 'Rewards won', 'Closest time (s)', 'Seconds off target', 'Agreed to offers', 'First played', 'Last played'],
+    cust.map((c) => [c.name, c.phone, c.plays, c.days.size, c.rewards.join(' | ') || 'None', fmt(c.bestTime), fmt(c.best), c.consent ? 'Yes' : 'No', new Date(c.first).toLocaleString('en-IN'), new Date(c.last).toLocaleString('en-IN')]));
   $('#expP').onclick = () => exportCsv(`plays-${dayKey(new Date())}.csv`,
     ['Played at', 'Name', 'Mobile', 'Time', 'Target', 'Off by', 'Result', 'Reward', 'Coupon', 'Redeemed at', 'Agreed to offers'],
     S.plays.map((p) => [new Date(p.played_at).toLocaleString('en-IN'), p.name, p.phone, fmt(p.time_ms), fmt(p.target_ms), fmt(p.diff_ms), p.tier_name || 'No win', p.reward || '', p.coupon_code || '', p.redeemed_at ? new Date(p.redeemed_at).toLocaleString('en-IN') : '', p.consent ? 'Yes' : 'No']));
